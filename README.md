@@ -1,0 +1,1 @@
+this project aims to boost gamepad detection for the program joyxoff
