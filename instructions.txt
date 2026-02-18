@@ -1,0 +1,137 @@
+Your task is to modify the existing XInput proxy DLL so that both real XInput devices and DirectInput devices can coexist, without relying on x360ce.exe, and without disabling XInput when a DirectInput mapping exists.
+
+Part A — INI handling (hard-coded support)
+
+Embed minimal x360ce.ini parsing logic directly into the DLL.
+
+Only parse these sections:
+
+[Mappings]
+
+[IG_*] device blocks
+
+Ignore all other x360ce features (Internet, UI, hook mode, etc).
+
+From the INI, extract:
+
+Logical slot (PAD1–PAD4)
+
+InstanceGuid
+
+Button/axis mappings (A, B, X, Y, triggers, axes)
+
+Do not require the INI to exist.
+If it exists → use it.
+If it does not → proceed without DirectInput mapping.
+
+Part B — Controller arbitration logic (CRITICAL)
+
+Implement this logic inside XInputGetState:
+
+For requested dwUserIndex:
+
+1. If a REAL XInput controller exists at this index:
+      - Call real XInputGetState
+      - If it returns ERROR_SUCCESS:
+            return it immediately
+
+2. Else, if a DirectInput device is mapped to this index (from INI):
+      - Poll DirectInput device
+      - Synthesize XINPUT_STATE
+      - Return ERROR_SUCCESS
+
+3. Else:
+      - Return ERROR_DEVICE_NOT_CONNECTED
+
+
+This guarantees:
+
+XInput controller always wins when present
+
+DirectInput fills gaps
+
+No controller shadows another
+
+Part C — Remove x360ce’s “exclusive mapping” behavior
+
+Explicitly disable or bypass logic equivalent to:
+
+“Only devices in [Mappings] are valid”
+
+“Block XInput when mappings exist”
+
+“Force PAD1 to mapped device regardless of real XInput”
+
+Your DLL must not behave like stock x360ce.
+
+Part D — DirectInput implementation (minimal)
+
+Use native DirectInput8:
+
+Enumerate only devices listed in [Mappings]
+
+Create device via InstanceGuid
+
+Set:
+
+c_dfDIJoystick2
+
+Foreground, non-exclusive
+
+Poll + GetDeviceState
+
+Convert values using INI mappings
+
+Ignore force feedback for now.
+
+Part E — Packet number correctness
+
+Maintain separate packet counters:
+
+One for real XInput
+
+One for synthesized DirectInput
+
+Increment packet number whenever state changes.
+Do not reuse 0 or static values.
+
+Part F — Safety and stability
+
+No DirectInput calls in DllMain
+
+Lazy init on first XInputGetState
+
+Thread-safe access to devices
+
+If DirectInput device disappears → gracefully return ERROR_DEVICE_NOT_CONNECTED
+
+Part G — Output requirements
+
+x86 build
+
+DLL name: xinput1_4.dll
+
+No dependency on x360ce.exe
+
+Works with:
+
+Only XInput controller present
+
+Only DirectInput controller present
+
+Both present simultaneously
+
+4. One key mental model to lock in
+
+Your DLL must never ask:
+
+“Is this an x360ce setup?”
+
+It must only ask:
+
+“Can I produce valid XINPUT_STATE right now?”
+
+If yes → JoyXoff works.
+If no → JoyXoff sees nothing.
+
+That’s it.

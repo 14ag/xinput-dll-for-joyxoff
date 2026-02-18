@@ -1,0 +1,67 @@
+[AI/2025-12-12 12:00:00]:Initial Plan
+    Created high-level todo list for XInputProxy (scaffold + implementation steps).
+    Next step: scaffold repository files and initial C++ stubs.
+    
+[AI/2025-12-12 12:05:00]:Scaffold Created
+    Created initial scaffolding: `copilot-instructions.md`, headers in `include/`, source stubs in `src/`, `xinput.def`, and `XInputProxy.vcxproj` placeholder.
+    Next step: implement `SystemXInputLoader.cpp` to locate and load the real XInput DLL and resolve all exported function pointers.
+
+[AI/2025-12-12 12:12:00]:System XInput Loader Implemented
+    Implemented `include/SystemXInputLoader.h` and updated `src/SystemXInputLoader.cpp` to load the real XInput DLL and resolve function pointers for standard exports. Updated `src/ProxyExports.cpp` to forward calls to the real XInput functions when available.
+    Next step: implement RawInput enumeration in `RawInputManager.cpp` and expose enumeration API.
+    
+[AI/2025-12-12 12:30:00]:RawInput Enumeration Implemented (basic)
+    Implemented `RawInputManager::RefreshDevices()` in `src/RawInputManager.cpp` to call `GetRawInputDeviceList`/`GetRawInputDeviceInfo`, parse device path for VID/PID, set `usagePage`/`usage`, compute a CRC32 `stableId`, and apply a basic `isXInput` heuristic (checks for "IG_" in device path). Returns devices via `Enumerate()`.
+    Next step: implement `ControllerResolver` logic to build stable logical controller indices and fuzzy matching across reconnects.
+    
+[AI/2025-12-12 12:48:00]:ControllerResolver Implemented
+    Implemented `include/ControllerResolver.h` updates and `src/ControllerResolver.cpp` to build a sorted list (XInput-first then HID) and perform fuzzy matching using stableId, VID/PID, and partial path matching to keep logical indices stable across reconnects.
+    Next step: implement `HidTranslator` to synthesize XInput state from RawInput HID reports for fallback.
+    
+[AI/2025-12-12 13:10:00]:HidTranslator Implemented (basic)
+    Implemented `include/HidTranslator.h` and `src/HidTranslator.cpp` with a basic placeholder `TranslateToXInput` that zeros `XINPUT_STATE`, sets a packet number, and applies simple deadzone normalization. Full HID report parsing is TODO.
+    Next step: implement XInput export wrappers fallback logic that uses `ControllerResolver` and `HidTranslator` when real XInput reports ERROR_DEVICE_NOT_CONNECTED.
+    
+[AI/2025-12-12 13:30:00]:XInput Export Wrappers + Fallback Implemented (basic)
+    Updated `src/ProxyExports.cpp` to forward exports to the real system XInput DLL when available. `XInputGetState` now falls back to `ControllerResolver` + `HidTranslator` synthesis when the system XInput returns `ERROR_DEVICE_NOT_CONNECTED`. This provides a minimal connected state so applications (like JoyXoff) detect controllers enumerated via RawInput.
+    Next step: implement actual HID report capture (WM_INPUT or ReadFile/HID APIs) to provide real-time button/axis data for the fallback path.
+    
+[AI/2025-12-12 13:45:00]:User chose x360ce integration
+    User selected to integrate with x360ce native proxy project. Added `x360ce_integration.md` with step-by-step instructions and `build_clone_patch.bat` helper script to clone, create branch `feat/joyxoff-xinput-proxy`, and copy scaffold files into the native project. Next step: prepare git-format patches and focused modifications ready to apply into the x360ce project; request exact native proxy project path in x360ce tree if user wants automated patch application.
+
+[AI/2025-12-12 13:55:00]:x360ce Repository Cloned Locally
+    Cloned `https://github.com/x360ce/x360ce` into `x360ce` subfolder and created branch `feat/joyxoff-xinput-proxy`.
+
+[AI/2025-12-12 14:10:00]:Applied proxy integration patches
+    Added loader, RawInputManager, ControllerResolver, HidTranslator, and ProxyExports into `x360ce\x360ce\x360ce` and committed as branch `feat/joyxoff-xinput-proxy`.
+    Attempted to build with MSBuild but `msbuild` wasn't available in this environment. Next step: please run the build locally with Visual Studio 2019 Build Tools (Developer Command Prompt) using `msbuild x360ce.sln /p:Configuration=Release /p:Platform=Win32`.
+
+[AI/2025-12-16 01:15:00]:Switched to DirectInput & Fixing Build
+    Decided to abandon the broken RawInput/HidTranslator path and instead wire up the existing, robust DirectInput implementation (`ControllerManager` -> `Controller`).
+    Modified `x360ce.cpp` to use `ControllerManager` for fallback.
+    Currently fixing C++ compilation errors (missing headers, type definitions, deprecated functions) to build the proxy DLL.
+    Next step: Finish fixing build errors, compile `xinput1_4.dll`, and verify with JoyXoff.
+
+[AI/2025-12-16 01:35:00]:Implementing DirectInput Auto-Config
+    User reported DirectInput controller not working (likely due to missing `x360ce.ini`).
+    Implemented auto-configuration in `Config.cpp` and `Controller.cpp` to detect generic DirectInput devices and apply default mappings without an INI file.
+    Encountered build errors (syntax/brace mismatch) in `Config.cpp` due to editing mistakes.
+    Next step: Fix `Config.cpp` syntax, rebuild, and verify.
+
+[AI/2025-12-16 02:30:00]: Project Reverted & New Plan
+    User reverted project due to issues.
+    New Requirements:
+    1. Hardcode `x360ce.ini` mappings (Logitech Dual Action/F310).
+    2. Implement Arbitration Logic: Real XInput -> DirectInput Fallback.
+    3. Support simultaneous XInput and DirectInput.
+    4. Re-created `build.bat`.
+    Current Status: Re-implementing logic in `Config.cpp`, `Controller.cpp`, and `x360ce.cpp`.
+
+[AI/2025-12-17 00:55:00]: Build Issues Resolved & DLL Generated
+    Successfully built `xinput1_4.dll` after resolving multiple build system and code issues.
+    Fixes included:
+    1.  Correcting `x360ce.vcxproj` path in build scripts.
+    2.  Adding missing `<xinput.h>` includes to `Controller.h`, `ControllerBase.h`, and `ForceFeedbackCombiner.h`.
+    3.  Using `cmd /c` to properly invoke Visual Studio build tools from PowerShell.
+    4.  Verified `xinput1_4.dll` presence in `bin\Release`.
+    Next step: User to verify DLL functionality with JoyXoff.

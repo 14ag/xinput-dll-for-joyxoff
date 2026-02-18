@@ -1,0 +1,22 @@
+For tests, i configured joyxoff to move pointer with controller
+Tests after adding dll to the joyxoff folder. For each test only 1 controller was plugged in and joyxoff was restarted::
+1
+Plug in xinput controller
+Observation: pointer moves (pass)
+First button press registered in logs
+
+2
+Plug in dinput controller
+Observation: pointer doesn't move
+First button press not registered in logs
+
+3
+Plug in dinput controller then copy x360ce.ini to joyxoff folder
+Observation:pointer doesn't move
+No log file generated at all
+
+
+4
+Plug in xinput controller then copy x360ce.ini to joyxoff folder
+Observation:pointer doesn't move
+No log file generated at all

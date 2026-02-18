@@ -1,0 +1,7 @@
+i have reverted this project again to an earilier version where it just fowards xinput for joyxoff. However, i want this project to be more concise. The new specific goal of this project is to create a dynamic xinput dll.
+X360ce creates different dlls for xinput and dinput. I want one that uses an if logic and prioritizes xinput controler
+Heres what i expect:
+  I launch joyxoff, xinput dll checks if debug mode is on or off for logging. If on it will create the log file as it's doing now. Next, the dll checks if the controller input is xinput or dinput. If it's xinput, it continues as it is. If its dinput i want it to do as x360ce does
+The goal here is to intergrate 2 functions using a logic
+Read the documentation in the root of the workspace then scan the repo to understand whats going on
+
